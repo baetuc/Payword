@@ -8,8 +8,6 @@ import com.google.common.base.Splitter;
 import javazoom.jl.decoder.JavaLayerException;
 import org.apache.commons.lang3.Validate;
 
-import javax.sound.sampled.LineUnavailableException;
-import javax.sound.sampled.UnsupportedAudioFileException;
 import java.awt.*;
 import java.io.*;
 import java.net.Socket;
@@ -68,16 +66,14 @@ public class UserClient {
 
                 executeCommand(command.toLowerCase(), os, is);
 
-            } catch (IllegalArgumentException | IOException | ClassNotFoundException | InterruptedException | LineUnavailableException | UnsupportedAudioFileException e) {
+            } catch (IllegalArgumentException | IOException | ClassNotFoundException e) {
                 System.err.println(e.getMessage());
-            } catch (JavaLayerException e) {
-                e.printStackTrace();
             }
         }
     }
 
     private void executeCommand(String command, ObjectOutputStream os, ObjectInputStream is)
-            throws IOException, ClassNotFoundException, NoSuchAlgorithmException, InvalidKeyException, SignatureException, UnsupportedAudioFileException, InterruptedException, LineUnavailableException, JavaLayerException {
+            throws IOException, ClassNotFoundException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
 
         Iterable<String> parts = Splitter.on(' ').trimResults().omitEmptyStrings().split(command);
         String head = null;
@@ -138,7 +134,7 @@ public class UserClient {
     }
 
     private void executeBuy(boolean customBuy, String itemIndex, String hashIndex, ObjectOutputStream os, ObjectInputStream is)
-            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, ClassNotFoundException, UnsupportedAudioFileException, InterruptedException, LineUnavailableException, JavaLayerException {
+            throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, ClassNotFoundException {
 
         checkNewHashGeneration(os, is);
 
@@ -199,6 +195,9 @@ public class UserClient {
         ObjectInputStream is = new ObjectInputStream(brockerSocket.getInputStream());
         ObjectOutputStream os = new ObjectOutputStream(brockerSocket.getOutputStream());
 
+        Command command = new Command("registration", null);
+        os.writeObject(command);
+
         SignedMessage registration = user.createRegistration();
         os.writeObject(registration);
         SignedMessage certificate = (SignedMessage) is.readObject();
@@ -212,7 +211,7 @@ public class UserClient {
     }
 
     private void playSong()
-            throws IOException, UnsupportedAudioFileException, LineUnavailableException, InterruptedException, JavaLayerException {
+            throws IOException {
 
         File temp = File.createTempFile("temp_downloaded_song", ".mp3");
         temp.deleteOnExit();

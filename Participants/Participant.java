@@ -20,8 +20,6 @@ public abstract class Participant {
 
         this.privateKey = keyPair.getPrivate();
         this.publicKey = keyPair.getPublic();
-        System.out.print("Insert valid ID: ");
-        this.id = readInformation();
     }
 
     protected SignedMessage signMessage(String message) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException {

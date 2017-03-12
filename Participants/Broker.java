@@ -1,11 +1,11 @@
 package Participants;
 
-import Messages.BrokerRegistration;
-import Messages.PaywordCertificate;
-import Messages.SignedMessage;
+import Messages.*;
+import com.google.common.hash.Hashing;
 import oracle.jdbc.driver.OracleDriver;
 import org.apache.commons.lang3.Validate;
 
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
@@ -59,6 +59,42 @@ public class Broker extends Participant {
         certificate.setExpireDate(resultSet.getDate(2));
         certificate.setCreditLimit(resultSet.getLong(3));
     }
+
+    public SignedMessage transfer(BrokerPayment payment) throws SQLException {
+        DriverManager.registerDriver(new OracleDriver());
+        Connection databaseConnection = DriverManager.getConnection("jdbc:oracle:thin:@localhost:1521:xe",
+                "student", "STUDENT");
+
+        PreparedStatement statement = databaseConnection.prepareStatement(
+                "SELECT credit_limit FROM user_info WHERE user_id = ?");
+
+        String userID = payment.getCommitment().getPaywordCertificate().getUserID();
+        statement.setString(1, userID);
+        ResultSet resultSet = statement.executeQuery();
+
+        Validate.isTrue(resultSet.isBeforeFirst(), "Inexistent user: " + userID);
+        resultSet.next();
+
+        long creditLimit = resultSet.getLong(1);
+        creditLimit -= payment.getAmount();
+
+        validateChain(payment);
+        String responseMessage = "Transferred " + payment.getAmount() + "$ to account. User left with " + creditLimit + "$.";
+
+        return new SignedMessage(false, responseMessage, null);
+    }
+
+    private void validateChain(BrokerPayment payment) {
+        String initialHash = payment.getCommitment().getHashRoot();
+
+        String current = payment.getFinalHash();
+        for (int i = 0; i < payment.getAmount(); ++i) {
+            current = Hashing.sha256().hashString(current, StandardCharsets.UTF_8).toString();
+        }
+
+        Validate.isTrue(current.equals(initialHash), "Hash chain is invalid! We will contact you for further instructions.");
+    }
+
 
 }
 

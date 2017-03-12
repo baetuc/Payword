@@ -24,6 +24,8 @@ public class User extends Participant {
 
     public User() throws NoSuchAlgorithmException {
         this.hashChain = null;
+        System.out.print("Insert valid ID: ");
+        this.id = readInformation();
     }
 
     public SignedMessage createRegistration()

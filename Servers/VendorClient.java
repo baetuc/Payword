@@ -8,8 +8,6 @@ import Requests.Command;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
@@ -18,10 +16,14 @@ import java.security.SignatureException;
  * Created by Cip on 01-Mar-17.
  */
 public class VendorClient {
+    private static final String BROKER_IP = "127.0.0.1";
+    private static final int BROKER_PORT = 2074;
+
     private static final int PORT = 2075;
 
     private ServerSocket socket;
     private Vendor vendor;
+
 
     public VendorClient() throws IOException, NoSuchAlgorithmException {
         this.socket = new ServerSocket(PORT);
@@ -31,6 +33,7 @@ public class VendorClient {
     public void start() {
         while (true) {
             try {
+                makeTransfer();
 
                 Socket clientSocket = socket.accept();
                 ObjectOutputStream os = new ObjectOutputStream(clientSocket.getOutputStream());
@@ -130,6 +133,26 @@ public class VendorClient {
                 os.write(buffer, 0, count);
             }
             os.flush();
+        }
+    }
+
+    private void makeTransfer() throws IOException, ClassNotFoundException {
+        try {
+            InputStream fis = new FileInputStream("D:\\An 3\\Sem II\\SCA\\Payword\\src\\transfer.txt");
+            if (fis.read() == -1) {
+                return;
+            }
+
+            Socket socket = new Socket(BROKER_IP, BROKER_PORT);
+            ObjectInputStream is = new ObjectInputStream(socket.getInputStream());
+            ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+
+            os.writeObject(new Command("transfer", null));
+            os.write();
+            SignedMessage response = (SignedMessage) is.readObject();
+            System.out.println(response.getMessage());
+        } catch (FileNotFoundException e) {
+            System.out.println(e.getMessage());
         }
     }
 

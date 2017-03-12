@@ -45,6 +45,7 @@ public class Vendor extends Participant {
                 "Broker signature invalid on Payword certficate message.");
 
         userCommitments.put(certificate.getUserID(), new UserInfo(commitment));
+        System.out.println("Received commitment for user: " + certificate.getUserID());
     }
 
     public Items listCommand() {
@@ -75,6 +76,7 @@ public class Vendor extends Participant {
         validateChain(payment);
         info.incrementLastHashIndex(payment.getHashIndex() - info.getLastHashIndex());
         info.setLastHash(payment.getHash());
+        System.out.println("Received payment for item " + itemIndex + ", in value of " + items.getItem(itemIndex).getValue());
         userCommitments.put(payment.getUserID(), info);
     }
 
