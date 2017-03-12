@@ -1,9 +1,6 @@
 package Participants;
 
-import Messages.Commitment;
-import Messages.Payment;
-import Messages.PaywordCertificate;
-import Messages.SignedMessage;
+import Messages.*;
 import Requests.Items;
 import com.google.common.hash.Hashing;
 import org.apache.commons.lang3.Validate;
@@ -25,7 +22,7 @@ public class Vendor extends Participant {
     private final Items items;
 
     public Vendor() throws NoSuchAlgorithmException {
-        this.userCommitments = new HashMap<>();
+        this.userCommitments = Collections.synchronizedMap(new HashMap<>());
         this.items = new Items();
         initializeItems();
     }
@@ -52,7 +49,7 @@ public class Vendor extends Participant {
         return items;
     }
 
-    public void validateBuy(int itemIndex, Payment payment, String userIP)
+    public long validateBuy(int itemIndex, Payment payment, String userIP)
             throws IllegalArgumentException {
 
         Validate.isTrue(userCommitments.containsKey(payment.getUserID()), "No commitment found for user ID.");
@@ -70,14 +67,18 @@ public class Vendor extends Participant {
         long creditLimit = info.getCommitment().getPaywordCertificate().getCreditLimit();
         Date generationDate = info.getCommitment().getCurrentDate();
 
-        Validate.isTrue(payment.getHashIndex() < creditLimit, "Credit limit exceeded.");
-        Validate.isTrue(!passedOneDay(generationDate), "Commitment certificate has expired.");
+        Validate.isTrue(payment.getHashIndex() < creditLimit, "Credit limit exceeded for user " + payment.getUserID() +
+                ". Left with " + (creditLimit - payment.getHashIndex() - 1));
+        Validate.isTrue(!passedOneDay(generationDate), "Commitment certificate has expired for user " + payment.getUserID());
 
         validateChain(payment);
         info.incrementLastHashIndex(payment.getHashIndex() - info.getLastHashIndex());
         info.setLastHash(payment.getHash());
-        System.out.println("Received payment for item " + itemIndex + ", in value of " + items.getItem(itemIndex).getValue());
+        System.out.println("Received payment for item " + (itemIndex + 1) + ", in value of " +
+                items.getItem(itemIndex).getValue() + "$ from user " + payment.getUserID());
+
         userCommitments.put(payment.getUserID(), info);
+        return creditLimit - info.getLastHashIndex() - 1;
     }
 
     private void validateChain(Payment payment) {
@@ -113,6 +114,26 @@ public class Vendor extends Participant {
         return ROOT_FOLDER + "\\" + items.getItem(itemIndex).getName();
     }
 
+    public List<SignedMessage> createBrokerPayments() {
+        List<SignedMessage> payments = new ArrayList<>();
+        BrokerPayment payment;
+
+        synchronized (userCommitments) {
+            for (Map.Entry<String, UserInfo> userInfo : userCommitments.entrySet()) {
+                UserInfo info = userInfo.getValue();
+                if (info.getLastHashIndex() - info.getTransferred() == -1) {
+                    continue; // no items buyed.
+                }
+                payment = new BrokerPayment(info.getCommitment(), info.getLastHash(), info.getLastHashIndex() + 1);
+                payments.add(new SignedMessage(false, payment.toString(), null));
+                info.incrementTransferred(info.getLastHashIndex() - info.getTransferred() + 1);
+                userInfo.setValue(info);
+            }
+        }
+        return payments;
+    }
+
+
     private boolean passedOneDay(Date referenceDate) {
         Calendar cal = Calendar.getInstance();
         cal.setTime(referenceDate);
@@ -127,11 +148,13 @@ public class Vendor extends Participant {
         private Commitment commitment;
         private int lastHashIndex;
         private String lastHash;
+        private int transferred;
 
         public UserInfo(Commitment commitment) {
             this.commitment = commitment;
             this.lastHashIndex = -1;
             this.lastHash = commitment.getHashRoot();
+            this.transferred = 0;
         }
 
         public Commitment getCommitment() {
@@ -150,8 +173,16 @@ public class Vendor extends Participant {
             return lastHash;
         }
 
+        public int getTransferred() {
+            return transferred;
+        }
+
         public void incrementLastHashIndex(int amount) {
             lastHashIndex += amount;
+        }
+
+        public void incrementTransferred(int amount) {
+            transferred += amount;
         }
     }
 

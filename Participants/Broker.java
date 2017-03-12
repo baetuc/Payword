@@ -79,7 +79,16 @@ public class Broker extends Participant {
         creditLimit -= payment.getAmount();
 
         validateChain(payment);
-        String responseMessage = "Transferred " + payment.getAmount() + "$ to account. User left with " + creditLimit + "$.";
+        String responseMessage = "Transferred " + payment.getAmount() + "$ from account. User " + userID + " left with ";
+        responseMessage += creditLimit + "$.";
+
+        // Update the new credit limit
+        statement = databaseConnection.prepareStatement("UPDATE user_info SET credit_limit = ? WHERE user_id = ?");
+        statement.setLong(1, creditLimit);
+        statement.setString(2, userID);
+
+        statement.executeUpdate();
+        databaseConnection.commit();
 
         return new SignedMessage(false, responseMessage, null);
     }

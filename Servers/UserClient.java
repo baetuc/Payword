@@ -41,15 +41,6 @@ public class UserClient {
         this.fileSize = 0;
     }
 
-    public static void main(String[] args) {
-        try {
-            UserClient client = new UserClient();
-            client.start();
-        } catch (Exception e) {
-            System.out.println(e.getClass() + ": " + e.getMessage());
-        }
-    }
-
     public void start() throws ClassNotFoundException, IOException, NoSuchAlgorithmException, InvalidKeyException, SignatureException {
         String command;
         initialize();
@@ -59,7 +50,6 @@ public class UserClient {
 
         while (!exit) {
             try {
-
                 BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
                 System.out.print("Enter command: ");
                 command = br.readLine().trim();
@@ -67,7 +57,7 @@ public class UserClient {
                 executeCommand(command.toLowerCase(), os, is);
 
             } catch (IllegalArgumentException | IOException | ClassNotFoundException e) {
-                System.err.println(e.getMessage());
+                System.out.println(e.getMessage());
             }
         }
     }
@@ -159,6 +149,7 @@ public class UserClient {
         os.writeObject(payment);
         SignedMessage response = (SignedMessage) is.readObject();
         Validate.isTrue(!response.isException(), response.getMessage());
+        System.out.println(response.getMessage());
 
         playSong();
     }
@@ -181,6 +172,7 @@ public class UserClient {
             os.writeObject(command);
 
             SignedMessage commitment = user.createCommitment(certificate, chainRoot);
+            System.out.println("Generated commitment.");
             os.writeObject(commitment);
             SignedMessage response = (SignedMessage) is.readObject();
             Validate.isTrue(!response.isException(), response.getMessage());
@@ -190,7 +182,6 @@ public class UserClient {
     }
 
     private void initialize() throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, IOException, ClassNotFoundException {
-
 
         ObjectInputStream is = new ObjectInputStream(brockerSocket.getInputStream());
         ObjectOutputStream os = new ObjectOutputStream(brockerSocket.getOutputStream());
@@ -207,7 +198,7 @@ public class UserClient {
         // Verify that the certificate is valid
         Validate.isTrue(user.isValidPaywordCertificate(certificate), "Invalid payword cartificate!");
         this.certificate = certificate;
-        os.flush();
+        System.out.println("Received payword certificate from Broker.");
     }
 
     private void playSong()
@@ -231,6 +222,15 @@ public class UserClient {
         }
 
         Desktop.getDesktop().open(temp);
+    }
+
+    public static void main(String[] args) {
+        try {
+            UserClient client = new UserClient();
+            client.start();
+        } catch (Exception e) {
+            System.out.println(e.getClass() + ": " + e.getMessage());
+        }
     }
 
 }

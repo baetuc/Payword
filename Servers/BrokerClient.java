@@ -6,7 +6,9 @@ import Messages.SignedMessage;
 import Participants.Broker;
 import Requests.Command;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.GeneralSecurityException;
@@ -25,6 +27,8 @@ public class BrokerClient {
     public BrokerClient() throws IOException, NoSuchAlgorithmException {
         this.socket = new ServerSocket(PORT);
         this.broker = new Broker();
+
+        System.out.println("Started Broker process.");
     }
 
     public void start() {
@@ -73,17 +77,20 @@ public class BrokerClient {
         String userIP = clientSocket.getInetAddress().toString();
         SignedMessage certificate = broker.createPaywordCertificate(brokerRegistration, userIP);
 
+        System.out.println("Created payword certificate for user " + brokerRegistration.getUserID());
         os.writeObject(certificate);
     }
 
     private void executeTransfer(ObjectOutputStream os, ObjectInputStream is) throws IOException, ClassNotFoundException, SQLException {
-        SignedMessage serializedPayment = (SignedMessage) is.readObject();
-        BrokerPayment payment = BrokerPayment.createBrokerPayment(serializedPayment.getMessage());
-        SignedMessage transferResponse = broker.transfer(payment);
-
-        os.writeObject(transferResponse);
+        int size = is.readInt();
+        for (int i = 0; i < size; ++i) {
+            SignedMessage serializedPayment = (SignedMessage) is.readObject();
+            BrokerPayment payment = BrokerPayment.createBrokerPayment(serializedPayment.getMessage());
+            SignedMessage transferResponse = broker.transfer(payment);
+            os.writeObject(transferResponse);
+            System.out.println(transferResponse.getMessage());
+        }
     }
-
 
     public static void main(String[] args) {
         try {
